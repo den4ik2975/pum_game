@@ -63,13 +63,39 @@ def order(op_type, info):
     return None
 
 
+def get_info():
+    response = requests.get(f'{url}user_info')
+    plants, cash, fighters, raw = response.json()['plants'], response.json()['cash'], response.json()['fighters'], response.json()['raw']
+    return f"Plants: {plants}\nCash: {cash}\nFighters: {fighters}\nRaw: {raw}\n"
+
+
+def produce_order(op_type, info):
+    inp = ['planes', 'buy'] if op_type == 'plane' else ['plants', 'build']
+    req = 'produce' if op_type == 'produce' else 'build'
+    while True:
+        print(info)
+        ordr = int(input(f"How many {inp[0]} do you want to {inp[1]}? Enter number or press Enter if you don't want to buy"))
+        if ordr == '':
+            break
+        response = requests.post(f'{url}{req}', json={'amount': ordr})
+        print(response.json()['data'])
+        time.sleep(1.5)
+        os.system('CLS')
+        if response.json()['status'] == 'ok':
+            break
+    return None
+
+
+def finish_turn():
+    print(requests.post(f'{url}finish').json()['response'])
+    return None
+
+
 os.system('CLS')
 while True:
     claimed_copy = copy.deepcopy(claimed)
-    response = requests.get(f'{url}user_info')
-    plants, cash, fighters, raw = response.json()['plants'], response.json()['cash'], response.json()['fighters'], response.json()['raw']
-    info = f"Plants: {plants}\nCash: {cash}\nFighters: {fighters}\nRaw: {raw}\n"
     while True:
+        info = get_info()
         print(info)
         message = f"1 - buy raw. Done: {claimed_copy['raw']}\n" \
                   f"2 - sell planes. Done: {claimed_copy['sell']}\n" \
@@ -83,6 +109,15 @@ while True:
         if inp == '2':
             order('plane', info)
             claimed_copy['sell'] = True
+        if inp == '3':
+            produce_order('plane', info)
+            claimed_copy['sell'] = True
+        if inp == '4':
+            produce_order('plant', info)
+            claimed_copy['build'] = True
+        if inp == '5':
+            finish_turn()
+            break
         if inp == '6':
             sys.exit()
         os.system('CLS')

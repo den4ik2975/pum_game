@@ -38,19 +38,16 @@ else:
 
 
 server = Flask(__name__)
-players_profiles = dict()
-players_raw_orders = dict()
 game = Game(players, 3, market_levels, market_chances, month)
 game.calculate_values()
 
 
 @server.post('/connect')
 def index():
-    global players_profiles
     data = request.get_json()
-    if game.is_started is False and len(players_profiles) < game.players:
+    if game.is_started is False and len(game.players_profiles) < game.players_num:
         player = Player(request.remote_addr, data['name'])
-        players_profiles[request.remote_addr] = player
+        game.players_profiles[request.remote_addr] = player
         return jsonify(data=f'{data["name"]} you succesfully joined the game', status='ok')
     else:
         return jsonify(data='Game has already started or lobby is full', status='no')
@@ -58,41 +55,75 @@ def index():
 
 @server.get('/user_info')
 def user_info():
-    plants = players_profiles[request.remote_addr].plant_num
-    cash = players_profiles[request.remote_addr].cash
-    fighters = players_profiles[request.remote_addr].fighter_num
-    raw = players_profiles[request.remote_addr].material_num
+    plants = game.players_profiles[request.remote_addr].plant_num
+    cash = game.players_profiles[request.remote_addr].cash
+    fighters = game.players_profiles[request.remote_addr].fighter_num
+    raw = game.players_profiles[request.remote_addr].material_num
     return jsonify(plants=plants, cash=cash, fighters=fighters, raw=raw)
 
 
 @server.post('/buy_raw')
 def purchase():
+    cur_player = game.players_profiles[request.remote_addr]
     data = request.get_json()
     if int(data['price']) >= int(game.min_material_price):
-        players_raw_orders[request.remote_addr] = [data['number'], data['price']]
-        print(players_raw_orders)
-        return jsonify(data=f'{players_profiles[request.remote_addr].name}, you order was accepted', status='ok')
+        game.players_raw_orders[request.remote_addr] = [data['number'], data['price']]
+        print(game.players_raw_orders)
+        return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
-        return jsonify(data=f'{players_profiles[request.remote_addr].name}, you order was not accepted', status='no')
+        return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
 
 
 @server.post('/sell_planes')
 def get_order():
+    cur_player = game.players_profiles[request.remote_addr]
     data = request.get_json()
     if int(data['price']) <= int(game.max_fighter_price):
-        players_raw_orders[request.remote_addr] = [data['number'], data['price']]
-        print(players_raw_orders)
-        return jsonify(data=f'{players_profiles[request.remote_addr].name}, you order was accepted', status='ok')
+        game.players_plane_orders[request.remote_addr] = [data['number'], data['price']]
+        print(game.players_plane_orders)
+        return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
-        return jsonify(data=f'{players_profiles[request.remote_addr].name}, you order was not accepted', status='no')
+        return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
 
 
-@server.route('/info', methods=["GET"])
-def send_info():
-    print(jsonify(data=players_profiles))
-    return jsonify(data=players_profiles)
+@server.post('/produce')
+def plane_order():
+    data = request.get_json()['amount']
+    cur_player = game.players_profiles[request.remote_addr]
+    if cur_player.plant_num >= data and cur_player.material_num >= data and cur_player.cash >= (data * 2000):
+        cur_player.material_num -= data
+        cur_player.cash -= (data * 2000)
+        cur_player.plane_ordered = data
+        return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
+    else:
+        return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
 
+
+@server.post('/build')
+def build_order():
+    data = request.get_json()['amount']
+    cur_player = game.players_profiles[request.remote_addr]
+    if cur_player.plant_num + len(cur_player.plants_building) + data <= 6 and cur_player.cash >= data * 4000:
+        cur_player.plants_building += [0] * data
+        cur_player.cash -= (data * 4000)
+        return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
+    else:
+        return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
+
+
+@server.post('/finish')
+def finish_turn():
+    cur_player = game.players_profiles[request.remote_addr]
+    cur_player.is_finished = True
+    game.players_finished += 1
+    return jsonify(data=f'Finished')
 
 
 if __name__ == "__main__":
     server.run(ip, port=port)
+
+
+while True:
+    if len(game.players_profiles) == game.players_num:
+        game.is_started = True
+        break

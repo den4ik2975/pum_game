@@ -10,7 +10,6 @@ class Player:
         self.plants_building = []
         self.is_finished = False
 
-
 class Game:
     def __init__(self, players, market_level, market_levels, market_chances, month_num):
         self.players_profiles = dict()

@@ -97,8 +97,8 @@ def get_order():
     data = request.get_json()
     cur_player = game.players_profiles[data['id']]
     if int(data['price']) <= int(game.max_fighter_price):
-        game.players_plane_orders[data['id']] = [data['number'], data['price']]
-        print(game.players_plane_orders)
+        game.players_fighter_orders[data['id']] = [data['number'], data['price']]
+        print(game.players_fighter_orders)
         return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
         return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
@@ -106,12 +106,12 @@ def get_order():
 
 @server.post('/produce')
 def plane_order():
-    data = request.get_json()['amount']
+    data = int(request.get_json()['amount'])
     cur_player = game.players_profiles[request.get_json()['id']]
     if cur_player.plant_num >= data and cur_player.material_num >= data and cur_player.cash >= (data * 2000):
         cur_player.material_num -= data
         cur_player.cash -= (data * 2000)
-        cur_player.plane_ordered = data
+        cur_player.fighter_ordered = data
         return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
         return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')
@@ -121,9 +121,9 @@ def plane_order():
 def build_order():
     data = request.get_json()['amount']
     cur_player = game.players_profiles[request.get_json()['id']]
-    if cur_player.plant_num + len(cur_player.plants_building) + data <= 6 and cur_player.cash >= data * 4000:
+    if cur_player.plant_num + len(cur_player.plants_building) + data <= 6 and cur_player.cash >= data * 2500:
         cur_player.plants_building += [0] * data
-        cur_player.cash -= (data * 4000)
+        cur_player.cash -= (data * 2500)
         return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
         return jsonify(data=f'{cur_player.name}, you order was not accepted', status='no')

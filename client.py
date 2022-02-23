@@ -99,7 +99,7 @@ def produce_order(op_type, info):
 
 
 def finish_turn():
-    print(requests.post(f'{url}finish').json()['response'])
+    print(requests.post(f'{url}finish', json={'id':pl_id}).json()['data'])
     return None
 
 
@@ -115,7 +115,7 @@ while True:
             message = f"1 - buy raw. Done: {claimed_copy['raw']}\n" \
                       f"2 - sell planes. Done: {claimed_copy['sell']}\n" \
                       f"3 - produce material. Done: {claimed_copy['produce']}\n" \
-                      f"4 - buy raw. Done: {claimed_copy['build']}\n" \
+                      f"4 - build plants. Done: {claimed_copy['build']}\n" \
                       f"5 - Finish turn\n"
             inp = input(message)
             if inp == '1':

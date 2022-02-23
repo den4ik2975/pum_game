@@ -38,7 +38,7 @@ else:
     sys.exit()'''
 ip = '127.0.0.1'
 port = 5000
-players = 2
+players = 3
 month = -1
 id_counter = 1
 
@@ -84,8 +84,8 @@ def user_info():
 def purchase():
     data = request.get_json()
     cur_player = game.players_profiles[data['id']]
-    if int(data['price']) >= int(game.min_material_price):
-        game.players_raw_orders[data['id']] = [data['number'], data['price']]
+    if int(data['price']) >= int(game.min_material_price) and int(data['number']) > 0 and int(data['number']) * int(data['price']) <= cur_player.cash:
+        game.players_raw_orders[data['id']] = [int(data['number']), int(data['price'])]
         print(game.players_raw_orders)
         return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
@@ -138,19 +138,21 @@ def finish_turn():
     return jsonify(data=f'Finished')
 
 
-def func():
+def game_loop():
     while True:
         if len(game.players_profiles) == game.players_num:
             game.is_started = True
-            print("ABOBA")
             break
+    while game.month_num:
+        while True:
+            if game.players_finished == game.players_num:
+                break
+        game.raw_handling()
+        break
 
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=func)
+    thread = threading.Thread(target=game_loop)
     thread.start()
     server.run(ip, port=port)
 
-'''while True:
-    if game.players_finished == game.players_num:
-        break'''

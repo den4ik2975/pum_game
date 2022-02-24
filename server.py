@@ -147,8 +147,13 @@ def game_loop():
         while True:
             if game.players_finished == game.players_num:
                 break
+
         game.raw_handling()
-        break
+        game.plane_handling()
+        game.fighter_produce()
+        game.plant_checker()
+        game.month_num -= 1
+        game.calculate_taxes()
 
 
 if __name__ == "__main__":

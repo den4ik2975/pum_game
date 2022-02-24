@@ -12,6 +12,7 @@ class Player:
         self.fighter_ordered = 0
         self.plants_building = []
         self.is_finished = False
+        self.is_bunkrupt = False
 
 class Game:
     def __init__(self, players, market_level, market_levels, market_chances, month_num):
@@ -67,8 +68,7 @@ class Game:
                     self.players_profiles[order[0]].material_num += self.material_bank
                     break
 
-        for i in self.players_profiles.values():
-            print(i.cash, i.material_num)
+        self.players_raw_orders.clear()
 
     def plane_handling(self):
         self.sorted_players_fighter_orders = sorted(self.players_fighter_orders.items(), key=lambda item: (-1 * item[1][1], item[1][0]), reverse=True)
@@ -102,6 +102,17 @@ class Game:
                     player.plant_num += 1
                     player.cash -= 2500
                     del player.plants_building[player.plants_building.index(4)]
+                    if player.cash < 0:
+                        player.is_bunkrupt = True
+                        self.players_num -= 1
+
+        self.players_fighter_orders.clear()
 
     def calculate_taxes(self):
-        pass
+        for player in self.players_profiles.values():
+            player.cash -= player.material_num * 300
+            player.cash -= player.fighter_num * 500
+            player.cash -= player.plant_num * 1000
+            if player.cash < 0:
+                player.is_bunkrupt = True
+                self.players_num -= 1

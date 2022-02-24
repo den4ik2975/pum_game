@@ -1,4 +1,4 @@
-import random
+from random import choice
 
 
 class Player:
@@ -14,6 +14,15 @@ class Player:
         self.is_finished = False
         self.is_bunkrupt = False
 
+    def calculate_capitalization(self, material_price, fighter_price):
+        cap = 0
+        cap += self.plant_num * 5000
+        cap += self.material_num * material_price
+        cap += self.fighter_num * fighter_price
+        cap += self.cash
+        return cap
+
+
 class Game:
     def __init__(self, players, market_level, market_levels, market_chances, month_num):
         self.players_profiles = dict()
@@ -26,6 +35,7 @@ class Game:
         self.month_num = month_num
         self.cur_month = 0
         self.is_started = False
+        self.is_ended = False
         self.players_finished = 0
 
     def calculate_values(self):
@@ -35,58 +45,59 @@ class Game:
         self.max_fighter_price = self.market_levels[str(self.market_level)][3]
 
     @staticmethod
-    def spreading(spreading_obj):
-        result = []
-        cur_price = spreading_obj[0][1][1]
-        hlp = []
-        for order in spreading_obj:
-            if order[1][1] == cur_price:
-                hlp.append(order)
-            elif order[1][1] != cur_price:
-                result += [hlp[:]]
-                hlp.clear()
-                hlp.append(order)
-                cur_price = order[1][1]
-        result += [hlp[:]]
-        return result
+    def can_pay(cur_player, order):
+        return True if cur_player.cash - (order[1][0] * order[1][1]) >= 0 else False
+
+    def bunkrupt_check(self, player):
+        if player.cash < 0:
+            player.is_bunkrupt = True
+            self.players_num -= 1
+            if self.players_num is 0:
+                self.is_ended = True
 
     def raw_handling(self):
         self.sorted_players_raw_orders = sorted(self.players_raw_orders.items(), key=lambda item: (item[1][1], item[1][0]), reverse=True)
 
-        self.spread_players_raw_orders = self.spreading(self.sorted_players_raw_orders)
-
-        for order_pack in self.spread_players_raw_orders:
-            for order in order_pack:
-                if self.material_bank == 0:
-                    break
-                if order[1][0] <= self.material_bank:
+        for order in self.sorted_players_raw_orders:
+            cur_player = self.players_profiles[order[0]]
+            if self.material_bank == 0:
+                break
+            if order[1][0] <= self.material_bank:
+                if self.can_pay(cur_player, order):
                     self.material_bank -= order[1][0]
                     self.players_profiles[order[0]].cash -= order[1][0] * order[1][1]
                     self.players_profiles[order[0]].material_num += order[1][0]
-                elif order[1][0] >= self.material_bank:
+                else:
+                    self.bunkrupt_check(cur_player)
+
+            elif order[1][0] > self.material_bank:
+                if self.can_pay(cur_player, order):
                     self.players_profiles[order[0]].cash -= self.material_bank * order[1][1]
                     self.players_profiles[order[0]].material_num += self.material_bank
                     break
+                else:
+                    self.bunkrupt_check(cur_player)
 
         self.players_raw_orders.clear()
 
     def plane_handling(self):
         self.sorted_players_fighter_orders = sorted(self.players_fighter_orders.items(), key=lambda item: (-1 * item[1][1], item[1][0]), reverse=True)
 
-        self.spread_players_fighter_orders = self.spreading(self.sorted_players_fighter_orders)
+        for order in self.sorted_players_fighter_orders:
+            cur_player = self.players_profiles[order[0]]
+            if self.fighter_bank == 0:
+                break
+            if order[1][0] <= self.fighter_bank:
+                self.fighter_bank -= order[1][0]
+                cur_player.cash += order[1][0] * order[1][1]
+                cur_player.fighter_num -= order[1][0]
 
-        for order_fighter in self.spread_players_fighter_orders:
-            for order in order_fighter:
-                if self.material_bank == 0:
-                    break
-                if order[1][0] <= self.fighter_bank:
-                    self.fighter_bank -= order[1][0]
-                    self.players_profiles[order[0]].cash += order[1][0] * order[1][1]
-                    self.players_profiles[order[0]].fighter_num -= order[1][0]
-                elif order[1][0] >= self.fighter_bank:
-                    self.players_profiles[order[0]].cash += self.material_bank * order[1][1]
-                    self.players_profiles[order[0]].fighter_num -= self.fighter_bank
-                    break
+            elif order[1][0] > self.fighter_bank:
+                cur_player.cash += self.fighter_bank * order[1][1]
+                cur_player.fighter_num -= self.fighter_bank
+                break
+
+        self.players_fighter_orders.clear()
 
     def fighter_produce(self):
         for player in self.players_profiles.values():
@@ -102,17 +113,17 @@ class Game:
                     player.plant_num += 1
                     player.cash -= 2500
                     del player.plants_building[player.plants_building.index(4)]
-                    if player.cash < 0:
-                        player.is_bunkrupt = True
-                        self.players_num -= 1
 
-        self.players_fighter_orders.clear()
+            self.bunkrupt_check(player)
+
 
     def calculate_taxes(self):
         for player in self.players_profiles.values():
             player.cash -= player.material_num * 300
             player.cash -= player.fighter_num * 500
             player.cash -= player.plant_num * 1000
-            if player.cash < 0:
-                player.is_bunkrupt = True
-                self.players_num -= 1
+
+            self.bunkrupt_check(player)
+
+    def market_level_choice(self):
+        self.market_level = choice(self.market_chances[self.market_level])

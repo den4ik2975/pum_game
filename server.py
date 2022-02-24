@@ -31,19 +31,19 @@ def set_params():
     return [False]
 
 
-'''params = set_params()
+params = set_params()
 if len(params) == 4:
     ip, port, players, month = params[0], params[1], int(params[2]), int(params[3])
 else:
-    sys.exit()'''
-ip = '127.0.0.1'
-port = 5000
-players = 3
-month = -1
+    sys.exit()
+#ip = '127.0.0.1'
+#port = 5000
+#players = 2
+#month = -1
 id_counter = 1
 
 server = Flask(__name__)
-game = Game(players, 3, market_levels, market_chances, month)
+game = Game(players=players, market_level='3', market_levels=market_levels, market_chances=market_chances, month_num=month)
 game.calculate_values()
 
 
@@ -66,6 +66,10 @@ def user_info():
     cur_player = game.players_profiles[request.get_json()['id']]
     if game.is_started is False:
         return jsonify(data='Waiting for other players', status='0')
+    if game.is_ended:
+        return jsonify(data=f'Game ended, winner is {next(iter(game.players_profiles))[1].name}', status='10')
+    if cur_player.is_bunkrupt:
+        return jsonify(data='You are a bunkrupt', status = '-1')
     if cur_player.is_finished is False and game.is_started is True:
         market_lvl = game.market_level
         raw_price = game.min_material_price
@@ -97,7 +101,7 @@ def get_order():
     data = request.get_json()
     cur_player = game.players_profiles[data['id']]
     if int(data['price']) <= int(game.max_fighter_price):
-        game.players_fighter_orders[data['id']] = [data['number'], data['price']]
+        game.players_fighter_orders[data['id']] = [int(data['number']), int(data['price'])]
         print(game.players_fighter_orders)
         return jsonify(data=f'{cur_player.name}, you order was accepted', status='ok')
     else:
@@ -139,10 +143,12 @@ def finish_turn():
 
 
 def game_loop():
+
     while True:
         if len(game.players_profiles) == game.players_num:
             game.is_started = True
             break
+
     while game.month_num:
         while True:
             if game.players_finished == game.players_num:
@@ -152,8 +158,28 @@ def game_loop():
         game.plane_handling()
         game.fighter_produce()
         game.plant_checker()
-        game.month_num -= 1
+
+        game.month_num -= 1 #new_month
         game.calculate_taxes()
+        game.market_level_choice()
+        game.calculate_values()
+        for player in game.players_profiles.values():
+            player.is_finished = False
+        game.players_finished = 0
+        if game.players_num == 1:
+            game.is_ended = True
+            break
+
+    if game.players_num > 1:
+        capitalizations = dict()
+        for id, player in game.players_profiles.items():
+            capitalizations[id] = player.calculate_capitalization(game.min_material_price, game.max_fighter_price)
+
+        sorted_caps = sorted(capitalizations.items(), key=lambda item: item[1], reverse=True)
+        winner = next(iter(sorted_caps))
+        game.players_profiles.clear()
+        game.players_profiles[winner[0]] = winner[1]
+        game.is_ended = True
 
 
 if __name__ == "__main__":
